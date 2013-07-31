@@ -6,6 +6,7 @@ import pickle
 import numpy
 import gauss2d
 import scipy.ndimage
+import time 
 
 def loadResults(fileName):
     f = open(fileName)
@@ -88,6 +89,38 @@ def plot_surface_wire(X, Y, Z, filename='resultFigure.png', stride=1):
     plt.savefig(filename)
     plt.show()
     
+    
+def plot_interatively(X, Y, Z, stride=1):
+    from mpl_toolkits.mplot3d import axes3d
+    from matplotlib import cm
+    import matplotlib.pyplot as plt
+    
+    plt.ion()
+    fig = plt.figure('slow_motion')
+    
+    ax = fig.add_subplot(1, 1, 1, projection='3d', title='Scannig ...')
+    
+    Z_to_be_updated = numpy.zeros(X.shape)
+    
+    surf = ax.plot_surface(X, Y, Z_to_be_updated, rstride=stride, cstride=stride, cmap=cm.bone, linewidth=0, antialiased=True)
+    for k,line in enumerate(Z):
+        ax.set_title('Scanning ' + '.' * ((k % 3) + 1))
+        Z_to_be_updated[k] = Z[k]
+        surf = ax.plot_surface(X, Y, Z_to_be_updated, rstride=stride, cstride=stride, cmap=cm.bone, linewidth=0, antialiased=True)
+        plt.draw()
+        time.sleep(0.5)
+    #plt.show()
+    ax.set_title('Scan finished')
+    time.sleep(5.)
+    
+    plt.ioff()
+    fig2 = plt.figure('final')
+    
+    ax = fig2.add_subplot(1, 1, 1, projection='3d', title='Scan finished')
+    surf2 = ax.plot_surface(X, Y, Z, rstride=stride, cstride=stride, cmap=cm.bone, linewidth=0, antialiased=True)
+    plt.show()
+    
+
 def XYZ(xyz, shape=(20, 40), observable = ('self.imag', 'image'), what = 'capillary'):
     '''Go through the results and return X, Y, Z matrices for 3d plots'''
     motors = {'aperture': ['AprX', 'AprZ'],
@@ -119,7 +152,6 @@ def XYZ(xyz, shape=(20, 40), observable = ('self.imag', 'image'), what = 'capill
     return X, Y, Z
   
   
-
 def main():
     import optparse
     
@@ -181,8 +213,10 @@ def main():
     #Z = (Z > 0.8*m) * 1
     
     #x = Z * 
+    plot_interatively(X, Y, Z)
+    
     print 
-    plot_surface_wire(X, Y, Z, filename=options.filename.replace('pck', 'png'), stride=1)
+    #plot_surface_wire(X, Y, Z, filename=options.filename.replace('pck', 'png'), stride=1)
     
 
 if __name__ == '__main__':
