@@ -23,12 +23,10 @@ class collect(object):
                    'PhiTableYAxisPosition', 
                    'PhiTableZAxisPosition',
                    'CentringTableXAxisPosition', 
-                   'CentringTableYAxisPosition',
-                   'PhiPosition']
+                   'CentringTableYAxisPosition']
                    
-    motorShortNames = ['PhiX', 'PhiY', 'PhiZ', 'SamX', 'SamY', 'Phi']
+    motorShortNames = ['PhiX', 'PhiY', 'PhiZ', 'SamX', 'SamY']
     
-    helicalsMotors = ['PhiY', 'PhiZ', 'SamX', 'SamY', 'Phi']
     shortFull = dict(zip(motorShortNames, motorsNames))
     
     def __init__(self,
@@ -180,7 +178,7 @@ class collect(object):
         self.helicalFinal = self.getMotorValues()
 
 
-    def saveLinearStart(self):
+    def saveLinarStart(self):
         self.linearStart = self.getMotorValues()
         
         
@@ -238,7 +236,7 @@ class collect(object):
         
         position = {}
         for motor in start:
-            position[motor] = start[motor] + displacements[motor] * float(n)/(self.nImages - 1)
+            position[motor] = start[motor] + displacements[motor] * float(n)/self.nImages
             
         return position
     
@@ -393,6 +391,15 @@ class collect(object):
         self.md2.write_attribute('PhasePosition', 4)
       
 
+    def initializeDetectorAttributes(self):
+        self.logger.info('Trying to circumvent occasional lima blocking: Reading all the attributes of limaadsc and adsc device servers -- suggested by Sandra')
+        for att in self.limaadsc.get_attribute_list():
+            self.limaadsc.read_attribute(att)
+            time.sleep(0.01)
+        for att in self.adsc.get_attribute_list():
+            self.adsc.read_attribute(att)
+            time.sleep(0.01)
+
     def detectorReady(self):
         self.logger.info('Preparing Detector')
         if self.limaadsc.state().name != 'STANDBY':
@@ -402,12 +409,13 @@ class collect(object):
         if self.adsc.state().name != 'STANDBY':
             self.adsc.Stop()
             time.sleep(0.5)
-            
+        
         if not self.imagePath.endswith('/'):
             self.imagePath += '/'
         self.wait(self.adsc)
         self.adsc.write_attribute('imagePath', self.imagePath)
         self.limaadsc.write_attribute('nbFrames', self.nbFrames)
+        
         
     
     def safeOpenSafetyShutter(self):
@@ -642,6 +650,7 @@ class collect(object):
         self.openSafetyShutter()
         self.goniometerReady()
         self.detectorReady()
+        self.initializeDetectorAttributes()
         
         wedges = self.prepareWedges(self.firstImage, self.nbFrames, self.ScanStartAngle)
 
