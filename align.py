@@ -10,7 +10,11 @@ import math
 import PyTango
 import time
 import pickle
+<<<<<<< HEAD
 #import Collect
+=======
+import Collect
+>>>>>>> 1afb2f2d2d60ea8ecc8f791af53a31c540557008
 import copy
 
 class align(object):
@@ -30,9 +34,15 @@ class align(object):
     
     
     def __init__(self, save=True):
+<<<<<<< HEAD
         #self.md2 = PyTango.DeviceProxy('i11-ma-cx1/ex/md2')
         #self.imag = PyTango.DeviceProxy('i11-ma-cx1/ex/imag.1')
         #self.ia = PyTango.DeviceProxy('i11-ma-cx1/ex/limaprosilica-analyzer')
+=======
+        self.md2 = PyTango.DeviceProxy('i11-ma-cx1/ex/md2')
+        self.imag = PyTango.DeviceProxy('i11-ma-cx1/ex/imag.1')
+        self.ia = PyTango.DeviceProxy('i11-ma-cx1/ex/limaprosilica-analyzer')
+>>>>>>> 1afb2f2d2d60ea8ecc8f791af53a31c540557008
         self.save = save
 
 
@@ -222,6 +232,7 @@ class align(object):
         self.moveToPosition({'CbsX': cHor, 'CbsZ': cVer})
         self.md2.CapillaryBSSaveInPosition()
         
+<<<<<<< HEAD
         filename_measured = 'cbps_scan_measured_%s_%s_%s' % (nbsteps, lengths, '_'.join(time.asctime().split()))
         f = open(filename_measured, 'w')
         pickle.dump(results, f)
@@ -229,12 +240,22 @@ class align(object):
         
         filename_xyz = 'cbps_scan_xyz_%s_%s_%s' % (nbsteps, lengths, '_'.join(time.asctime().split()))
         g = open(filename_xyz, 'w')
+=======
+        f = open('cbps_scan_measured' + str(nbsteps) + '_' + str(lengths) + '_'.join(time.asctime().split()) + '.pck', 'w')
+        pickle.dump(results, f)
+        f.close()
+        
+        g = open('cbps_scan_xyz_' + str(nbsteps) + '_' + str(lengths) + '_'.join(time.asctime().split()) + '.pck', 'w')
+>>>>>>> 1afb2f2d2d60ea8ecc8f791af53a31c540557008
         pickle.dump(results, g)
         g.close()
 
 
     def scanAperture(self, nbsteps, lengths):
+<<<<<<< HEAD
         print 'Starting aperture scan'
+=======
+>>>>>>> 1afb2f2d2d60ea8ecc8f791af53a31c540557008
         center = [self.md2.ApertureHorizontalPosition, self.md2.ApertureVerticalPosition]
         motors = ['AprX', 'AprZ']
         positions = self.calculatePositions(center, nbsteps, lengths, motors)
@@ -244,6 +265,7 @@ class align(object):
 
         measured, xyz = self.linearizedScan(positions, [(self.imag, 'image')]) #(a.md2, 'image'), (a.ia, 'inputImage'),
         results = {'positions': positions, 'measured': measured}
+<<<<<<< HEAD
         
         filename_measured = 'aperture_%s_scan_measured_%s_%s_%s.pck' % (self.md2.CurrentApertureDiameterIndex, nbsteps, lengths, '_'.join(time.asctime().split()))
                                                       
@@ -252,6 +274,11 @@ class align(object):
         f = open(filename_measured, 'w')
         g = open(filename_xyz, 'w')
 
+=======
+
+        f = open('aperture_' + str(self.md2.CurrentApertureDiameterIndex) + '_scan_measured_' + str(nbsteps) + '_' + str(lengths) + '_'.join(time.asctime().split()) + '.pck', 'w')
+        g = open('aperture_' + str(self.md2.CurrentApertureDiameterIndex) + '_scan_xyz_' + str(nbsteps) + '_' + str(lengths) + '_'.join(time.asctime().split()) + '.pck', 'w')
+>>>>>>> 1afb2f2d2d60ea8ecc8f791af53a31c540557008
         pickle.dump(results, f)
         pickle.dump(xyz, g)
         f.close()
@@ -279,6 +306,7 @@ if __name__ == '__main__':
     #measured = pickle.load(f)
     #f.close()
     #a.scan([95.3, 0.6], [15, 10], [1.5, 1.], 'ach')
+<<<<<<< HEAD
     import optparse
     
     usage = 'Program to perform collect on PX2 beamline.\n\n%prog -n <number_of_images>\n\nNumber of images to be collected has to be specified, others are optional.'
@@ -310,4 +338,7 @@ if __name__ == '__main__':
     (options, args) = parser.parse_args()
     print options
     print args
+=======
+        
+>>>>>>> 1afb2f2d2d60ea8ecc8f791af53a31c540557008
     

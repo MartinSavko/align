@@ -6,12 +6,12 @@ import Collect
 import time
 import pickle
 
-dire = '/927bis/ccd/2013/Run4/2013-10-03/CEA/GG/Myb30'
-pref = 'myb30_helical'
-star = 5.
+dire = '/927bis/ccd/2013/Run5/2013-12-12/Curie/'
+pref = 'test_helical'
+star = 0.
 first = 1
 temp =  pref + '_1_####.img'
-rang = 180.
+rang = 180
 osci = 0.5
 nImg = int(rang/abs(osci))
 
@@ -39,17 +39,21 @@ print 'Starting helical collect ...'
 #print collect.helicalFinal
 
 collect.helicalStart = {'PhiX': -0.1229,
- 'PhiY': 0.34489999999999998,
- 'PhiZ': -0.1187,
- 'SamX': -0.86739999999999995,
- 'SamY': 0.30959999999999999}
+ 'PhiY': 2.1674000000000002,
+ 'PhiZ': -0.058099999999999999,
+ 'SamX': 0.059400000000000001,
+ 'SamY': 0.16420000000000001}
 
 
 collect.helicalFinal = {'PhiX': -0.1229,
- 'PhiY': 0.1414,
- 'PhiZ': -0.1186,
- 'SamX': -0.80840000000000001,
- 'SamY': 0.29399999999999998}
+ 'PhiY': 2.1674000000000002,
+ 'PhiZ': -0.058099999999999999,
+ 'SamX': 0.059400000000000001,
+ 'SamY': 0.16420000000000001}
+
+
+
+
 
 
 
