@@ -13,7 +13,6 @@ import time
 import pickle
 import Collect
 import copy
-import optparse
 
 class align(object):
     motorsNames = ['PhiTableXAxisPosition', 
