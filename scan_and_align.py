@@ -3,6 +3,7 @@
 
 '''Aligning procedures for Proxima 2A beamline'''
 
+import sys
 import itertools
 import pylab
 import numpy
@@ -32,9 +33,8 @@ class align(object):
     motors = {'aperture': ['AprX', 'AprZ'],
               'capillary': ['CbsX', 'CbsZ']}
     
-    def __init__(self):
-        self.md2 = PyTango.DeviceProxy('i11-ma-cx1/ex/md2')
-        self.imag = PyTango.DeviceProxy('i11-ma-cx1/ex/imag.1')
+    def __init__(self, motor_device='i11-ma-cx1/ex/md2'):
+        self.motor_device = PyTango.DeviceProxy(motor_device)
         self.results = {'time': time.time(),
                         'datetime': time.asctime()}
                         
@@ -50,10 +50,10 @@ class align(object):
     def moveToPosition(self, position={}, epsilon=0.0005):
         if position != {}:
             for motor in position:
-                while abs(self.md2.read_attribute(self.shortFull[motor]).value - position[motor]) > epsilon:
-                    self.wait(self.md2)
-                    self.md2.write_attribute(self.shortFull[motor], position[motor])
-            self.wait(self.md2)
+                while abs(self.motor_device.read_attribute(self.shortFull[motor]).value - position[motor]) > epsilon:
+                    self.wait(self.motor_device)
+                    self.motor_device.write_attribute(self.shortFull[motor], position[motor])
+            self.wait(self.motor_device)
         return
         
 
@@ -92,10 +92,6 @@ class align(object):
     
     def calculatePositions(self, center, nbsteps, lengths, motors):
         '''Calculate positions at which we will measure. 2D for now i.e. two motors only.'''
-        self.results['nbsteps'] = nbsteps
-        self.results['lengths'] = lengths
-        self.results['motors'] = motors
-        
         center = numpy.array(center)
         nbsteps = numpy.array(nbsteps)
         lengths = numpy.array(lengths)
@@ -129,63 +125,79 @@ class align(object):
         return dictionariesOfOrderedPositions
         
 
-    def linearizedScan(self, positions, dependent):
+    def linearizedScan(self, positions, observable):
         xyz = []
-
-        for self.enumeratedPosition, position in enumerate(positions):
-            self.positionAndValue = copy.deepcopy(position)
+        lp = len(positions)
+        for k, position in enumerate(positions):
+            if k % 5 == 0:
+                print k
+                print 'moving to position %s (%d of %d)' % (str(position), k, lp)
+            self.positionAndValues = copy.deepcopy(position)
             self.moveToPosition(position)
             
-            for observable in dependent:
-                self.observe(observable)
-                
-            xyz.append(self.positionAndValue)
+            #for o in observable:
+            self.observe(observable)
+            
+            xyz.append(self.positionAndValues)
 
         self.results['xyz'] = copy.deepcopy(xyz)
 
 
     def observe(self, observable):
-        if observable != 'diffraction' and observable[1].find('image') != -1:
-            if observable[-1] == 'mean':
-                self.positionAndValue[(observable[0], observable[1])] = observable[0].read_attribute(observable[1]).value.mean()
+        if observable != 'diffraction' and observable['attribute'].find('image') != -1:
+            if observable['economy'] == 'mean':
+                self.positionAndValues[(observable['device'], observable['attribute'])] = self.sensor_device.read_attribute(observable['attribute']).value.mean()
             else:
-                self.positionAndValue[(observable[0], observable[1])] = observable[0].read_attribute(observable[1]).value
+                self.positionAndValues[(observable['device'], observable['attribute'])] = self.sensor_device.read_attribute(observable['attribute']).value
         else:
             self.collectObject.nbFrames = 4
             self.collectObject.template =  self.template.replace('CbsX', str(position['CbsX'])).replace('CbsZ', str(position['CbsZ']))
             print 'template', self.collectObject.template
             self.collectObject.collect()
             value = self.collectObject.imagePath + self.collectObject.template
-            self.positionAndValue['diffraction'] = value
+            self.positionAndValues['diffraction'] = value
         
 
-    def scan(self, nbsteps, lengths, dependent=[(self.imag, 'image', 'mean')]):
-        
+    def scan(self, nbsteps, lengths, observable={'device': 'i11-ma-cx1/ex/imag.1', 'attribute': 'image', 'economy': 'mean'}): #self.imag
+        # observable is dictionary which contains three entries: the 'device' refers to the device through which we access sensors, 'attribute' referring list of attributes to record and 'economy' that is intended for multidimensional measurements to indicate whether full measurement or just some global value (like e.g. mean) should be stored. 
         start = time.time()
+        self.sensor_device = PyTango.DeviceProxy(observable['device'])
+        self.results['nbsteps'] = nbsteps
+        self.results['lengths'] = lengths
         
         self.putScannedObjectInBeam()
         
-        self.dependent = dependent
-        self.results['dependent'] = self.dependent
+        self.observable = observable
+        self.results['observable'] = self.observable
+        if observable.has_key('device'):
+            self.sensor_device = PyTango.DeviceProxy(observable['device'])
+        else:
+            self.sensor_device = observable
+            
+        motors = self.motors[self.what]
+        self.results['motors'] = motors
         
-        motors = self.motors[self.what]        
-        center = [self.md2.read_attribute(self.shortFull(attribute)).value for attribute in motors]
-        
+        # center will contain current values of the scanned object
+        center = [self.motor_device.read_attribute(self.shortFull[motor]).value for motor in motors]
+        print 'center', center
+
+        # precalculating all the measurement positions
         positions = self.calculatePositions(center, nbsteps, lengths, motors)
+        self.results['positions'] = positions
         
         print positions
         print 'len(positions)', len(positions)
         
-        self.linearizedScan(positions, dependent)
+        self.linearizedScan(positions, observable)
         
         end = time.time()
         self.duration = end - start
         self.results['duration'] = self.duration
-        
+        self.putScannedObjectInBeam()
         
     def setAperture(self, index=1):
-        self.md2.write_attribute('CurrentApertureDiameterIndex', index)
-        self.wait(self.md2)
+        self.motor_device.write_attribute('CurrentApertureDiameterIndex', index)
+        self.wait(self.motor_device)
 
 
     def setWhatToScan(self, what):
@@ -195,17 +207,19 @@ class align(object):
     
     def putScannedObjectInBeam(self):
         positionAttributeOfScannedObject = {'capillary': 'CapillaryBSPosition', 
-                                            1: 'AperturePosition', 
-                                            2: 'AperturePosition', 
-                                            3: 'AperturePosition'}
-                                            
-        self.md2.write_attribute(positionAttributeOfScannedObject[self.what], 1)
-        self.wait(self.md2)
+                                            'aperture': 'AperturePredefinedPosition'}
+        # Put scanned object (capillary beamstop or an aperture into beam
+        self.motor_device.write_attribute(positionAttributeOfScannedObject[self.what], 1)
+        self.wait(self.motor_device)
 
         
     def saveScan(self):
-        apcap = {1: 'aperture_100um', 2: 'aperture_50um', 3: 'aperture_20um', 'capillary': 'capillary'}
-        filename = apcap[self.what] + '_' + self.results['datetime'] + '.pck'
+        apcap = {1: 'aperture_100um', 2: 'aperture_50um', 3: 'aperture_20um', 4: 'aperture_10um', 5: 'aperture_05um', 'aperture': 'aperture', 'capillary': 'capillary'}
+        if self.what != 'aperture':
+            what = self.what
+        else:
+            what = apcap[self.motor_device.read_attribute('CurrentApertureDiameterIndex').value]
+        filename = what + '_' + '_'.join(self.results['datetime'].split()) + '.pck'
 
         f = open(filename, 'w')
         pickle.dump(self.results, f)
@@ -220,10 +234,10 @@ def main():
 
     parser.add_option('-a', '--aperture', default=1, type = int, help = 'scan selected aperture (1 for 100um, 2 for 50um, 3 for 20um) (default: %default)')
     parser.add_option('-c', '--capillary', action='store_true', help = 'scan capillary')
-    parser.add_option('-x', '--nxsteps', default=5, type=int, help='number of steps in x direction (default: %default)')
-    parser.add_option('-y', '--nysteps', default=10, type=int, help='number of steps in y direction (default: %default)')
-    parser.add_option('-H', '--hlength', default=.5, type=float, help='length of scan in x direction (mm) (default: %default)')
-    parser.add_option('-V', '--vlength', default=1., type=float, help='length of scan in y direction (mm) (default: %default)')
+    parser.add_option('-x', '--nxsteps', default=4, type=int, help='number of steps in x direction (default: %default)')
+    parser.add_option('-y', '--nysteps', default=8, type=int, help='number of steps in y direction (default: %default)')
+    parser.add_option('-H', '--hlength', default=.3, type=float, help='length of scan in x direction (mm) (default: %default)')
+    parser.add_option('-V', '--vlength', default=.6, type=float, help='length of scan in y direction (mm) (default: %default)')
     
     (options, args) = parser.parse_args()
     print options
@@ -241,11 +255,12 @@ def main():
         a.setWhatToScan('capillary')
         
     else:
-        a.setWhatToScan(options.aperture)
+        a.setWhatToScan('aperture')
         a.setAperture(options.aperture)
     
     print 'scanning', a.what
     print 'a.scan(nbsteps, lengths)', nbsteps, lengths
+    #sys.exit()
     a.scan(nbsteps, lengths)
     print 'The scan took', a.results['duration'], 'seconds'
     
